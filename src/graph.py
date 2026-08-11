@@ -1,7 +1,16 @@
+import os
 import json
 from typing import Dict, Any, Literal
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
+
+# Imports officiels langgraph-checkpoint-postgres
+try:
+    from langgraph.checkpoint.postgres import PostgresSaver
+    POSTGRES_AVAILABLE = True
+except ImportError:
+    POSTGRES_AVAILABLE = False
 
 from config import LLMFactory
 from skills_manager import SkillsManager
@@ -11,9 +20,7 @@ from prompts import (
     SKILL_ROUTER_SYSTEM_PROMPT,
     SUPERVISOR_ROUTER_PROMPT
 )
-import os
 
-# Global instances
 skills_manager = SkillsManager(skills_dir="skills")
 
 
@@ -21,52 +28,28 @@ skills_manager = SkillsManager(skills_dir="skills")
 # 1. SKILL ROUTER NODE
 # ==========================================
 def skill_router_node(state: DeepAgentState) -> Dict[str, Any]:
-    """
-    Evaluates the article topic and dynamically selects the best Redaction and Excalidraw Skills.
-    """
     topic = state["topic"]
     print(f"\n🧠 [Skill Router] Analyzing topic: '{topic}'...")
 
-    # Get index of all available skills
     skills_index = skills_manager.get_skills_index_for_prompt()
+    sys_prompt = SKILL_ROUTER_SYSTEM_PROMPT.format(topic=topic, skills_index=skills_index)
 
-    sys_prompt = SKILL_ROUTER_SYSTEM_PROMPT.format(
-        topic=topic,
-        skills_index=skills_index
-    )
-
-    llm = LLMFactory.get_model(
-        provider=os.getenv("PROVIDER"),
-        temperature=0.1
-    )
-
+    llm = LLMFactory.get_model(provider=os.getenv("PROVIDER"), temperature=0.1)
     response = llm.invoke([
         SystemMessage(content=sys_prompt),
-        HumanMessage(content=f"Select the optimal skills for topic: '{topic}'")
+        HumanMessage(content=f"Select optimal skills for: '{topic}'")
     ])
 
     try:
-        # Clean JSON markdown fences if present
         clean_content = response.content.replace("```json", "").replace("```", "").strip()
         selection = json.loads(clean_content)
-
-        redaction_skill = selection.get("selected_redaction_skill")
-        excalidraw_skill = selection.get("selected_excalidraw_skill")
-        rationale = selection.get("rationale", "Optimal skill selection based on topic requirements.")
-
-        print(f"   🎯 Selected Redaction Skill : {redaction_skill}")
-        print(f"   🎨 Selected Excalidraw Skill: {excalidraw_skill}")
-        print(f"   💡 Rationale: {rationale}")
-
         return {
-            "selected_redaction_skill": redaction_skill,
-            "selected_excalidraw_skill": excalidraw_skill,
-            "skill_selection_rationale": rationale,
+            "selected_redaction_skill": selection.get("selected_redaction_skill"),
+            "selected_excalidraw_skill": selection.get("selected_excalidraw_skill"),
+            "skill_selection_rationale": selection.get("rationale"),
             "next_node": "supervisor"
         }
-
-    except Exception as e:
-        print(f"⚠️ Failed to parse Skill Router JSON, using fallback skills. Error: {e}")
+    except Exception:
         return {
             "selected_redaction_skill": "redaction-feynman-deep-dive",
             "selected_excalidraw_skill": "excalidraw-pipeline-flow",
@@ -79,18 +62,21 @@ def skill_router_node(state: DeepAgentState) -> Dict[str, Any]:
 # 2. SUPERVISOR NODE
 # ==========================================
 def supervisor_node(state: DeepAgentState) -> Dict[str, Any]:
-    """
-    Orchestrates execution flow by checking artifact status and routing to the appropriate agent.
-    """
     topic = state["topic"]
     research_status = state.get("research_notes_path")
     draft_status = state.get("draft_path")
     diagrams_status = state.get("diagrams_path")
+    feedback = state.get("revision_feedback")
 
-    print(f"\n👑 [Supervisor Agent] Evaluating artifact status...")
-    print(f"   - Research Notes: {research_status}")
-    print(f"   - Draft Article : {draft_status}")
-    print(f"   - Diagrams Spec : {diagrams_status}")
+    print(f"\n👑 [Supervisor Agent] Evaluating state...")
+    if feedback:
+        print(f"   ⚠️ Human Revision Feedback received: '{feedback}'")
+        # Reset draft status to force writer or researcher re-execution
+        return {
+            "draft_path": None,
+            "revision_feedback": None,
+            "next_node": "writer"
+        }
 
     sys_prompt = SUPERVISOR_ROUTER_PROMPT.format(
         topic=topic,
@@ -99,61 +85,55 @@ def supervisor_node(state: DeepAgentState) -> Dict[str, Any]:
         diagrams_status=diagrams_status
     )
 
-    llm = LLMFactory.get_model(
-        provider=os.getenv("PROVIDER"),
-        temperature=0.0
-    )
-
-    response = llm.invoke([
-        SystemMessage(content=sys_prompt),
-        HumanMessage(content="Determine the next node to execute.")
-    ])
+    llm = LLMFactory.get_model(provider=os.getenv("PROVIDER"), temperature=0.0)
+    response = llm.invoke([SystemMessage(content=sys_prompt), HumanMessage(content="Route next step.")])
 
     try:
         clean_content = response.content.replace("```json", "").replace("```", "").strip()
         decision = json.loads(clean_content)
         next_node = decision.get("next_node", "human_review")
-        print(f"   👉 Supervisor Routing Decision -> '{next_node}' ({decision.get('rationale')})")
+        print(f"   👉 Routing Decision -> '{next_node}'")
         return {"next_node": next_node}
-    except Exception as e:
-        print(f"⚠️ Supervisor fallback routing due to error: {e}")
+    except Exception:
         return {"next_node": "human_review"}
 
 
 # ==========================================
-# 3. ROUTING FUNCTION FOR CONDITIONAL EDGES
+# 3. HUMAN REVIEW NODE (HITL Interrupt Point)
 # ==========================================
+def human_review_node(state: DeepAgentState) -> Dict[str, Any]:
+    """
+    Node acting as the pause point for Human-in-the-Loop review.
+    """
+    print(f"\n⏸️ [Human Review Node] Pipeline paused. Ready for Human-in-the-Loop approval.")
+    return {"next_node": "human_review"}
+
+
 def route_next_step(state: DeepAgentState) -> Literal["researcher", "writer", "excalidraw", "human_review"]:
-    """
-    Conditional edge router reading state['next_node'].
-    """
-    next_node = state.get("next_node", "human_review")
-    if next_node in ["researcher", "writer", "excalidraw", "human_review"]:
-        return next_node
-    return "human_review"
+    return state.get("next_node", "human_review")
 
 
 # ==========================================
-# 4. LANGGRAPH ASSEMBLY
+# 4. COMPILER WITH POSTGRES CHECKPOINTER
 # ==========================================
-def create_deep_agent_graph():
+def create_deep_agent_graph(use_postgres: bool = True):
     """
-    Assembles the complete DeepAgent StateGraph.
+    Builds the StateGraph and attaches PostgresSaver checkpointer.
     """
     builder = StateGraph(DeepAgentState)
 
-    # Add Nodes
+    # Nodes
     builder.add_node("skill_router", skill_router_node)
     builder.add_node("supervisor", supervisor_node)
     builder.add_node("researcher", researcher_node)
     builder.add_node("writer", writer_node)
     builder.add_node("excalidraw", excalidraw_node)
+    builder.add_node("human_review", human_review_node)
 
-    # Add Edges
+    # Edges
     builder.add_edge(START, "skill_router")
     builder.add_edge("skill_router", "supervisor")
 
-    # Conditional routing from Supervisor
     builder.add_conditional_edges(
         "supervisor",
         route_next_step,
@@ -161,24 +141,35 @@ def create_deep_agent_graph():
             "researcher": "researcher",
             "writer": "writer",
             "excalidraw": "excalidraw",
-            "human_review": END  # Will be hooked to HITL in Step 6
+            "human_review": "human_review"
         }
     )
 
-    # Sub-agents loop back to Supervisor after completing their task
     builder.add_edge("researcher", "supervisor")
     builder.add_edge("writer", "supervisor")
     builder.add_edge("excalidraw", "supervisor")
+    builder.add_edge("human_review", END)
 
-    return builder.compile()
+    # Setup Checkpointer (PostgresSaver with Fallback to MemorySaver)
+    db_uri = os.getenv("DATABASE_URL")
+    checkpointer = None
 
+    if use_postgres and POSTGRES_AVAILABLE and db_uri:
+        try:
+            print(f"💾 Initializing PostgresSaver with DB: {db_uri.split('@')[-1]}")
+            checkpointer = PostgresSaver.from_conn_string(db_uri)
+            # Setup tables on first run (checkpoints, checkpoint_blobs, etc.)
+            checkpointer.setup()
+            print("✅ PostgresSaver tables initialized successfully.")
+        except Exception as e:
+            print(f"⚠️ Postgres Connection failed ({e}). Falling back to MemorySaver.")
+            checkpointer = MemorySaver()
+    else:
+        print("💾 Using MemorySaver for checkpointer persistence.")
+        checkpointer = MemorySaver()
 
-# ==========================================
-# 🧪 TEST GRAPH COMPILATION
-# ==========================================
-if __name__ == "__main__":
-    print("🧪 Testing LangGraph StateGraph Assembly...")
-    
-    app = create_deep_agent_graph()
-    print("✅ LangGraph compiled successfully!")
-    print(f"   Nodes in graph: {list(app.nodes.keys())}")
+    # Compile with HITL Interrupt before entering human_review
+    return builder.compile(
+        checkpointer=checkpointer,
+        interrupt_before=["human_review"]
+    )
