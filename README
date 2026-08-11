@@ -1,0 +1,257 @@
+# DeepAgent Medium Writer
+
+> **An Autonomous, Production-Grade Multi-Agent AI System built with LangChain, LangGraph, AgentSkills.io, Celery, Redis, and PostgreSQL.**
+
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![LangChain](https://img.shields.io/badge/LangChain-v0.3-1C3C3C?style=for-the-badge)
+![LangGraph](https://img.shields.io/badge/LangGraph-v0.2-FF4F00?style=for-the-badge)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![Celery](https://img.shields.io/badge/Celery-5.3+-37814A?style=for-the-badge&logo=celery&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-5.0+-DC382D?style=for-the-badge&logo=redis&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
+
+---
+
+## 📌 Overview
+
+**DeepAgent Medium Writer** is an autonomous AI technical publication pipeline designed to write **deeply pedagogical, visual, and mathematically sound Medium articles** on Artificial Intelligence.
+
+Unlike generic AI content generators that produce superficial text, DeepAgent Medium Writer combines:
+1. **First-Principles & Feynman Pedagogical Standards** for crystal-clear explanations.
+2. **Native Excalidraw Visual Integration**: The agent automatically designs, structures, and embeds authentic vector Excalidraw diagrams into the article text.
+3. **AgentSkills.io Compliance**: Dynamic skill discovery and routing based on topic complexity.
+4. **Human-in-the-Loop (HITL) Steering**: Interrupt points allowing human technical editors to review, approve, or submit revision feedback before publishing.
+
+---
+
+## 🏛️ System Architecture
+
+```text
+                                 +------------------------+
+                                 |   Single-Page Web UI   |
+                                 | (Tailwind / Excalidraw)|
+                                 +-----------+------------+
+                                             |
+                                 1. REST / 2. SSE Stream
+                                             v
+                                 +------------------------+
+                                 |      FastAPI App       |
+                                 |      (src/api.py)      |
+                                 +-----------+------------+
+                                             |
+                                 3. Dispatch Celery Task
+                                             v
+                                 +------------------------+
+                                 |     Redis Broker       |
+                                 |  (Queue & Pub/Sub SSE) |
+                                 +-----------+------------+
+                                             |
+                                 4. Execute Graph Task
+                                             v
++-----------------------------------------------------------------------------------+
+|                              Celery Worker Process                                |
+|                                                                                   |
+|   +---------------+      +----------------+      +---------------------------+    |
+|   | Skill Router  | ---> | Deep Researcher| ---> |    Pedagogical Writer     |    |
+|   +---------------+      +----------------+      +---------------------------+    |
+|                                                                |                  |
+|   +---------------+      +----------------+                    v                  |
+|   | Human Review  | <--- |  Excalidraw    | <--- +---------------------------+    |
+|   | (HITL Pause)  |      |  Merger Agent  |      | Excalidraw Spec Architect |    |
+|   +---------------+      +----------------+      +---------------------------+    |
+|                                                                                   |
++-----------------------------------------------------------------------------------+
+                                             |
+                                5. State Checkpointing
+                                             v
+                                 +------------------------+
+                                 |  PostgreSQL Checkpoint |
+                                 |  (medium_writer_db)    |
+                                 +------------------------+
+```
+
+---
+
+## ✨ Key Features
+
+* **Model-Provider Agnostic (`LLMFactory`)**: Easily switch between **OpenRouter**, **Anthropic Claude 3.5 Sonnet**, **OpenAI GPT-4o**, **Google Gemini 3.5**, and **DeepSeek R1**.
+* **AgentSkills.io Specification**: Modular skill architecture using YAML frontmatter metadata for dynamic agent routing.
+* **Asynchronous Task Queue**: Long-running research and drafting tasks execute off-main-thread via **Celery workers** with **Redis Pub/Sub** real-time streaming.
+* **Persistent Checkpointing**: State persistence powered by **`langgraph-checkpoint-postgres`** using `psycopg_pool` connection pooling.
+* **Native Excalidraw CDN Rendering**: The frontend renders embedded Excalidraw JSON diagrams as vector SVGs directly using the official `@excalidraw/excalidraw` engine (`exportToSvg`).
+* **Full Observability**: Integrated with **LangSmith Tracing** for inspecting agent reasoning, tool invocations, and token usage.
+
+---
+
+## 📁 Repository Structure
+
+```text
+deepagent_writer/
+│
+├── .env                          # API keys and environment variables
+├── requirements.txt              # Production Python dependencies
+├── create_skills.py              # Script to generate AgentSkills.io registry
+├── main.py                       # CLI Entry point with HITL prompt
+│
+├── skills/                       # AgentSkills.io registry (Markdown + YAML Frontmatter)
+│   ├── redaction_feynman.md
+│   ├── redaction_eli5_analogy.md
+│   ├── redaction_socratic_first_principles.md
+│   ├── redaction_engineering_case_study.md
+│   ├── redaction_comparative_battle.md
+│   ├── excalidraw_pipeline_flow.md
+│   ├── excalidraw_tensor_matrix.md
+│   ├── excalidraw_agent_state_machine.md
+│   ├── excalidraw_comparative_split.md
+│   └── excalidraw_geometric_intuition.md
+│
+├── workspace/                    # Sandboxed file directory generated by agents
+│   ├── research_notes.md
+│   ├── draft.md
+│   ├── diagrams_spec.md
+│   └── final_article.md
+│
+├── static/                       # Single Page Application
+│   └── index.html                # Tailwind CSS + Excalidraw UMD + SSE Frontend
+│
+└── src/
+    ├── __init__.py
+    ├── config.py                 # LLM Factory (OpenRouter, Anthropic, Gemini, OpenAI)
+    ├── prompts.py                # Isolated System Prompts in English
+    ├── skills_manager.py         # AgentSkills.io Parser & Registry Manager
+    ├── tools.py                  # Filesystem Sandbox, Python Sandbox & Tavily Search
+    ├── state.py                  # LangGraph DeepAgentState TypedDict
+    ├── agents.py                 # Sub-Agents (Researcher, Writer, Excalidraw, Merger)
+    ├── graph.py                  # LangGraph StateGraph & Postgres Checkpointer
+    ├── celery_app.py             # Celery Instance Configuration
+    ├── tasks.py                  # Celery Tasks & Redis Pub/Sub Streaming
+    └── api.py                    # FastAPI Web Server (CRUD, SSE, HITL)
+```
+
+---
+
+## 🎓 Skills Registry (AgentSkills.io Standard)
+
+The system automatically loads 10 specialized skills from `skills/` using YAML metadata:
+
+### 📝 Pedagogical Redaction Skills
+1. **`redaction-feynman-deep-dive`**: Simplifies complex AI math (Attention, LoRA matrix rank) in 4 intuitive steps.
+2. **`redaction-eli5-analogy`**: Explains low-level hardware optimizations (Quantization, KV Cache) using extended physical metaphors.
+3. **`redaction-socratic-first-principles`**: Explores historical architectural failures to guide readers to new solutions.
+4. **`redaction-engineering-case-study`**: Production-focused implementation guides with benchmarks and typed code.
+5. **`redaction-comparative-battle`**: Head-to-head technical comparisons (LangChain vs LangGraph, LoRA vs QLoRA).
+
+### 🎨 Excalidraw Visual Diagram Skills
+1. **`excalidraw-pipeline-flow`**: Sequential execution flows, data pipelines, and RAG generation.
+2. **`excalidraw-tensor-matrix`**: Tensor transformations, Q/K/V matrix multiplications, and rank decomposition.
+3. **`excalidraw-agent-state-machine`**: LangGraph circular loops, router nodes, and HITL interrupts.
+4. **`excalidraw-comparative-split`**: Side-by-side "Before vs After" visual canvas splits.
+5. **`excalidraw-geometric-intuition`**: 2D/3D coordinate vector spaces, embeddings, and loss landscapes.
+
+---
+
+## ⚡ Quick Start & Installation
+
+### 1. Prerequisites
+Ensure you have the following installed on your system:
+* **Python 3.10+**
+* **Redis Server** (running on port `6379`)
+* **PostgreSQL Server** (running on port `5432`)
+
+### 2. Clone Repository & Install Dependencies
+```bash
+git clone https://github.com/NchourupouoM/deepagent_writer.git
+cd deepagent_writer
+
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### 3. Setup Environment Variables
+Create a `.env` file in the root directory:
+```bash
+# LangSmith Observability
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_ENDPOINT="https://api.smith.langchain.com"
+LANGCHAIN_API_KEY="your_langsmith_api_key"
+LANGCHAIN_PROJECT="deep-agent-medium-writer"
+
+# LLM Providers (OpenRouter Recommended)
+OPENROUTER_API_KEY="sk-or-v1-..."
+OPENAI_API_KEY="sk-..."
+ANTHROPIC_API_KEY="sk-ant-..."
+GOOGLE_API_KEY="AIzaSy..."
+
+# Search API
+TAVILY_API_KEY="tvly-..."
+
+# Redis & PostgreSQL Infrastructure
+REDIS_URL="redis://localhost:6379/0"
+POSTGRES_DB_URI="postgresql://postgres:postgres@localhost:5432/medium_writer_db?sslmode=disable"
+```
+
+### 4. Initialize Database & Generate Skills
+```bash
+# Create PostgreSQL Database
+psql -U postgres -c "CREATE DATABASE medium_writer_db;"
+
+# Generate AgentSkills.io files in skills/
+python create_skills.py
+```
+
+---
+
+## 🚀 Running the System
+
+To run the complete production stack, open **3 separate terminal windows**:
+
+### Terminal 1: Start Redis Server
+```bash
+redis-server
+# Or using Docker: docker run -d -p 6379:6379 redis:alpine
+```
+
+### Terminal 2: Start Celery Worker
+```bash
+celery -A src.celery_app worker --loglevel=info
+```
+
+### Terminal 3: Start FastAPI Backend
+```bash
+uvicorn src.api:app --host 127.0.0.1 --port 8000 --reload
+```
+
+Access the Web Dashboard at **`http://127.0.0.1:8000`** in your browser!
+
+---
+
+## 📡 API Endpoints Summary
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/articles` | Initiates a new article generation task (Dispatches Celery job). |
+| `GET` | `/api/articles` | Lists all article generation sessions and their statuses. |
+| `GET` | `/api/articles/{thread_id}` | Gets thread state details and next execution step. |
+| `GET` | `/api/articles/{thread_id}/stream` | **SSE Endpoint** streaming real-time node execution from Redis. |
+| `POST` | `/api/articles/{thread_id}/hitl` | Submits Human-in-the-Loop decision (`approve` or `revise`). |
+| `GET` | `/api/articles/{thread_id}/files/{filename}` | Fetches workspace files (`final_article.md`, `draft.md`, etc.). |
+| `DELETE` | `/api/articles/{thread_id}` | Deletes session thread state from memory. |
+
+---
+
+## 👤 Author & Credits
+
+* **Nchourupouo Mohamed** — *AI Engineer*
+  * **LinkedIn**: [linkedin.com/in/mohamed-nchourupouo](https://linkedin.com/in/mohamed-nchourupouo)
+  * **GitHub**: [github.com/NchourupouoM](https://github.com/NchourupouoM)
+  * **Portfolio**: [nchourupouom.github.io](https://nchourupouom.github.io)
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License — see the `LICENSE` file for details.
