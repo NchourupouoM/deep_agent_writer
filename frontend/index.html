@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepAgent Medium Writer — Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Marked.js for Markdown Rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 50: '#f0f7ff', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 900: '#1e3a8a' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .prose pre { background-color: #1e293b; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; }
+        .prose code { color: #38bdf8; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col">
+
+    <!-- HEADER -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-blue-600/20 text-blue-400 rounded-lg border border-blue-500/30">
+                    <i data-lucide="bot" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-none text-white">DeepAgent Medium Writer</h1>
+                    <span class="text-xs text-slate-400">LangChain Deep Agent • LangGraph • AgentSkills.io</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    LangSmith Tracing Active
+                </span>
+                <button type="button" onclick="openNewArticleModal()" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-lg shadow-blue-500/20">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i> New Article
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <div class="flex-1 max-w-7xl w-full mx-auto px-6 py-8 grid grid-cols-12 gap-8">
+        
+        <!-- SIDEBAR: ACTIVE SESSIONS -->
+        <aside class="col-span-12 lg:col-span-4 space-y-4">
+            <div class="flex items-center justify-between">
+                <h2 class="font-semibold text-slate-200 text-sm flex items-center gap-2">
+                    <i data-lucide="layers" class="w-4 h-4 text-blue-400"></i> Generation Sessions
+                </h2>
+                <button type="button" onclick="fetchSessions()" class="text-slate-400 hover:text-white text-xs"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i></button>
+            </div>
+            <div id="sessions-list" class="space-y-3">
+                <div class="p-4 bg-slate-900 border border-slate-800 rounded-xl text-center text-slate-500 text-sm">
+                    No active generation sessions. Click 'New Article' to start.
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN DASHBOARD CONTENT -->
+        <main class="col-span-12 lg:col-span-8 space-y-6">
+            
+            <!-- STEPPER TRACKER -->
+            <div id="stepper-card" class="bg-slate-900 border border-slate-800 rounded-xl p-6 hidden">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                        <i data-lucide="activity" class="w-4 h-4 text-blue-400"></i> Real-Time Agent Execution Pipeline
+                    </h3>
+                    <span id="active-thread-id" class="text-xs font-mono text-slate-500">ID: -</span>
+                </div>
+                
+                <!-- STEPPER NODES -->
+                <div class="grid grid-cols-5 gap-2 text-center text-xs">
+                    <div id="step-skill_router" class="p-3 bg-slate-800/50 border border-slate-700/50 rounded-lg space-y-1">
+                        <i data-lucide="brain" class="w-4 h-4 mx-auto text-slate-400"></i>
+                        <div class="font-medium">Skill Router</div>
+                    </div>
+                    <div id="step-researcher" class="p-3 bg-slate-800/50 border border-slate-700/50 rounded-lg space-y-1">
+                        <i data-lucide="search" class="w-4 h-4 mx-auto text-slate-400"></i>
+                        <div class="font-medium">Researcher</div>
+                    </div>
+                    <div id="step-writer" class="p-3 bg-slate-800/50 border border-slate-700/50 rounded-lg space-y-1">
+                        <i data-lucide="file-text" class="w-4 h-4 mx-auto text-slate-400"></i>
+                        <div class="font-medium">Writer</div>
+                    </div>
+                    <div id="step-excalidraw" class="p-3 bg-slate-800/50 border border-slate-700/50 rounded-lg space-y-1">
+                        <i data-lucide="palette" class="w-4 h-4 mx-auto text-slate-400"></i>
+                        <div class="font-medium">Excalidraw</div>
+                    </div>
+                    <div id="step-human_review" class="p-3 bg-slate-800/50 border border-slate-700/50 rounded-lg space-y-1">
+                        <i data-lucide="user-check" class="w-4 h-4 mx-auto text-slate-400"></i>
+                        <div class="font-medium">HITL Review</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HUMAN IN THE LOOP (HITL) ACTION BANNER -->
+            <div id="hitl-banner" class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-6 hidden">
+                <div class="flex items-start gap-4">
+                    <div class="p-3 bg-amber-500/20 text-amber-400 rounded-lg">
+                        <i data-lucide="alert-circle" class="w-6 h-6"></i>
+                    </div>
+                    <div class="flex-1 space-y-3">
+                        <h3 class="font-semibold text-amber-300">Human-in-the-Loop Review Required</h3>
+                        <p class="text-xs text-amber-200/80">The Deep Agent team has finished the initial draft and diagram specifications. Review the artifacts below and either approve or request revisions.</p>
+                        <div class="flex items-center gap-3 pt-2">
+                            <button type="button" onclick="approveArticle()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                                <i data-lucide="check" class="w-4 h-4"></i> Approve Article
+                            </button>
+                            <button type="button" onclick="toggleRevisionInput()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                                <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Request Revisions
+                            </button>
+                        </div>
+                        <div id="revision-form" class="hidden pt-3 space-y-2">
+                            <textarea id="feedback-input" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-200 focus:outline-none focus:border-blue-500" placeholder="Specify instructions for revision..."></textarea>
+                            <button type="button" onclick="submitRevision()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-medium">Submit Revision Feedback</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ARTIFACT VIEWER TABS -->
+            <div id="artifact-viewer" class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden hidden">
+                <div class="border-b border-slate-800 px-6 py-3 flex items-center justify-between bg-slate-900/50">
+                    <div class="flex gap-2">
+                        <button type="button" onclick="switchTab('draft')" id="tab-draft" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white">Article Draft</button>
+                        <button type="button" onclick="switchTab('diagrams')" id="tab-diagrams" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-400 hover:text-white">Excalidraw Specs</button>
+                        <button type="button" onclick="switchTab('research')" id="tab-research" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-400 hover:text-white">Research Notes</button>
+                    </div>
+                </div>
+                <div class="p-6 max-h-[600px] overflow-y-auto">
+                    <div id="markdown-content" class="prose prose-invert prose-sm max-w-none">Select a session to view content.</div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- NEW ARTICLE MODAL -->
+    <div id="new-article-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="font-bold text-lg text-white flex items-center gap-2"><i data-lucide="sparkles" class="w-5 h-5 text-blue-400"></i> New Article Generation</h3>
+                <button type="button" onclick="closeNewArticleModal()" class="text-slate-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <label class="block text-xs font-medium text-slate-400">Article Topic / Title</label>
+                <input id="modal-topic-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-200 focus:border-blue-500 focus:outline-none" placeholder="e.g. Fine-Tuning LLMs with LoRA, QLoRA and Unsloth from First Principles">
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="closeNewArticleModal()" class="px-4 py-2 rounded-lg text-sm text-slate-400 hover:text-white">Cancel</button>
+                <button type="button" onclick="submitNewArticle()" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-lg text-sm font-medium transition">Start Generation</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT WITH ERROR-HANDLING & BASE URL DETECTION -->
+    <script>
+        // Detection automatique du serveur API
+        const API_BASE = (window.location.protocol === 'file:' || window.location.port === '5500') 
+            ? 'http://127.0.0.1:8000' 
+            : '';
+
+        console.log("📌 Connected to API Base URL:", API_BASE || "Same Origin");
+
+        if (window.lucide) lucide.createIcons();
+        let currentThreadId = null;
+        let activeTab = 'draft';
+        let currentFilesData = {};
+        let currentEventSource = null;
+
+        function openNewArticleModal() { 
+            document.getElementById('new-article-modal').classList.remove('hidden'); 
+        }
+        function closeNewArticleModal() { 
+            document.getElementById('new-article-modal').classList.add('hidden'); 
+        }
+
+        async function submitNewArticle() {
+            try {
+                const topicInput = document.getElementById('modal-topic-input');
+                const topic = topicInput ? topicInput.value.trim() : '';
+
+                if (!topic) {
+                    alert('Please enter an article topic.');
+                    return;
+                }
+
+                console.log("🚀 Submitting new article topic:", topic);
+                closeNewArticleModal();
+
+                const res = await fetch(`${API_BASE}/api/articles`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({topic: topic})
+                });
+
+                if (!res.ok) {
+                    const err = await res.text();
+                    throw new Error(`Server returned ${res.status}: ${err}`);
+                }
+
+                const data = await res.json();
+                console.log("✅ Article job created:", data);
+
+                await fetchSessions();
+                selectSession(data.thread_id);
+
+            } catch (error) {
+                console.error("❌ Error in submitNewArticle:", error);
+                alert("Error starting generation: " + error.message);
+            }
+        }
+
+        async function fetchSessions() {
+            try {
+                const res = await fetch(`${API_BASE}/api/articles`);
+                if (!res.ok) return;
+                const sessions = await res.json();
+                const container = document.getElementById('sessions-list');
+                
+                if (!sessions || sessions.length === 0) {
+                    container.innerHTML = `
+                        <div class="p-4 bg-slate-900 border border-slate-800 rounded-xl text-center text-slate-500 text-sm">
+                            No active generation sessions. Click 'New Article' to start.
+                        </div>`;
+                    return;
+                }
+
+                container.innerHTML = sessions.map(s => `
+                    <div onclick="selectSession('${s.thread_id}')" class="p-4 bg-slate-900 hover:bg-slate-800/80 border ${s.thread_id === currentThreadId ? 'border-blue-500' : 'border-slate-800'} rounded-xl cursor-pointer transition space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-mono text-slate-400">${s.thread_id}</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${s.status === 'completed' || s.status === 'approved_completed' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}">${s.status}</span>
+                        </div>
+                        <div class="text-sm font-medium text-slate-200 line-clamp-1">${s.topic}</div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error("Error fetching sessions:", e);
+            }
+        }
+
+        function selectSession(threadId) {
+            currentThreadId = threadId;
+            document.getElementById('stepper-card').classList.remove('hidden');
+            document.getElementById('artifact-viewer').classList.remove('hidden');
+            document.getElementById('active-thread-id').innerText = `ID: ${threadId}`;
+            fetchSessions();
+
+            // Connect to Real-time Stream
+            if (currentEventSource) currentEventSource.close();
+
+            const sseUrl = `${API_BASE}/api/articles/${threadId}/stream`;
+            console.log("📡 Connecting SSE Stream to:", sseUrl);
+
+            currentEventSource = new EventSource(sseUrl);
+
+            currentEventSource.onopen = () => {
+                console.log("✅ SSE Connection established!");
+            };
+
+            currentEventSource.onmessage = (event) => {
+                console.log("📩 SSE Event Received:", event.data);
+                const data = JSON.parse(event.data);
+                
+                if (data.node) highlightStep(data.node);
+                
+                if (data.event === 'HITL_INTERRUPT') {
+                    document.getElementById('hitl-banner').classList.remove('hidden');
+                    loadArtifacts(threadId);
+                    currentEventSource.close();
+                }
+                if (data.event === 'COMPLETED') {
+                    document.getElementById('hitl-banner').classList.add('hidden');
+                    loadArtifacts(threadId);
+                    currentEventSource.close();
+                }
+            };
+
+            currentEventSource.onerror = (err) => {
+                console.error("⚠️ SSE Connection Error:", err);
+                currentEventSource.close();
+            };
+        }
+
+        function highlightStep(nodeName) {
+            ['skill_router', 'researcher', 'writer', 'excalidraw', 'human_review'].forEach(step => {
+                const el = document.getElementById(`step-${step}`);
+                if (!el) return;
+                if (step === nodeName) {
+                    el.className = 'p-3 bg-blue-600/20 border border-blue-500 rounded-lg space-y-1 text-blue-400';
+                } else {
+                    el.className = 'p-3 bg-slate-800/50 border border-slate-700/50 rounded-lg space-y-1 text-slate-400';
+                }
+            });
+        }
+
+        async function loadArtifacts(threadId) {
+            try {
+                const [draftRes, diagRes, resRes] = await Promise.all([
+                    fetch(`${API_BASE}/api/articles/${threadId}/files/draft.md`).then(r => r.json()).catch(() => ({content: ''})),
+                    fetch(`${API_BASE}/api/articles/${threadId}/files/diagrams_spec.md`).then(r => r.json()).catch(() => ({content: ''})),
+                    fetch(`${API_BASE}/api/articles/${threadId}/files/research_notes.md`).then(r => r.json()).catch(() => ({content: ''}))
+                ]);
+
+                currentFilesData = {
+                    draft: draftRes.content || 'Draft not ready.',
+                    diagrams: diagRes.content || 'Diagrams spec not ready.',
+                    research: resRes.content || 'Research notes not ready.'
+                };
+
+                switchTab(activeTab);
+            } catch (e) {
+                console.error("Error loading artifacts:", e);
+            }
+        }
+
+        function switchTab(tab) {
+            activeTab = tab;
+            ['draft', 'diagrams', 'research'].forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                if (btn) {
+                    btn.className = t === tab 
+                        ? 'px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white' 
+                        : 'px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-400 hover:text-white';
+                }
+            });
+            
+            const markdownEl = document.getElementById('markdown-content');
+            if (markdownEl && window.marked) {
+                markdownEl.innerHTML = marked.parse(currentFilesData[tab] || '');
+            }
+        }
+
+        function toggleRevisionInput() {
+            document.getElementById('revision-form').classList.toggle('hidden');
+        }
+
+        async function approveArticle() {
+            try {
+                await fetch(`${API_BASE}/api/articles/${currentThreadId}/hitl`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({action: 'approve'})
+                });
+                document.getElementById('hitl-banner').classList.add('hidden');
+                alert('🎉 Article approved successfully!');
+                fetchSessions();
+            } catch (e) {
+                alert("Error approving article: " + e.message);
+            }
+        }
+
+        async function submitRevision() {
+            try {
+                const feedbackInput = document.getElementById('feedback-input');
+                const feedback = feedbackInput ? feedbackInput.value.trim() : '';
+                if (!feedback) return alert('Please enter feedback instructions.');
+                
+                await fetch(`${API_BASE}/api/articles/${currentThreadId}/hitl`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({action: 'revise', feedback: feedback})
+                });
+
+                document.getElementById('hitl-banner').classList.add('hidden');
+                selectSession(currentThreadId);
+            } catch (e) {
+                alert("Error submitting revision: " + e.message);
+            }
+        }
+
+        // Chargement initial
+        fetchSessions();
+    </script>
+</body>
+</html>

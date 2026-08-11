@@ -118,7 +118,7 @@ def route_next_step(state: DeepAgentState) -> Literal["researcher", "writer", "e
 # ==========================================
 def create_deep_agent_graph(use_postgres: bool = True):
     """
-    Builds the StateGraph and attaches PostgresSaver checkpointer.
+    Builds the StateGraph and attaches PostgresSaver checkpointer correctly.
     """
     builder = StateGraph(DeepAgentState)
 
@@ -150,20 +150,42 @@ def create_deep_agent_graph(use_postgres: bool = True):
     builder.add_edge("excalidraw", "supervisor")
     builder.add_edge("human_review", END)
 
-    # Setup Checkpointer (PostgresSaver with Fallback to MemorySaver)
+    # Setup Checkpointer (PostgresSaver avec ConnectionPool ou Fallback MemorySaver)
     db_uri = os.getenv("DATABASE_URL")
     checkpointer = None
 
     if use_postgres and POSTGRES_AVAILABLE and db_uri:
         try:
             print(f"💾 Initializing PostgresSaver with DB: {db_uri.split('@')[-1]}")
-            checkpointer = PostgresSaver.from_conn_string(db_uri)
-            # Setup tables on first run (checkpoints, checkpoint_blobs, etc.)
-            checkpointer.setup()
-            print("✅ PostgresSaver tables initialized successfully.")
+            from psycopg_pool import ConnectionPool
+            from psycopg.rows import dict_row
+
+            # Création du Pool de connexion officiel recommandé par LangGraph
+            connection_kwargs = {
+                "autocommit": True,
+                "prepare_threshold": 0,
+                "row_factory": dict_row
+            }
+            pool = ConnectionPool(
+                conninfo=db_uri,
+                max_size=20,
+                kwargs=connection_kwargs
+            )
+            
+            checkpointer = PostgresSaver(pool)
+            checkpointer.setup() # Crée automatiquement les tables dans Postgres si elles n'existent pas !
+            print("✅ PostgresSaver initialized successfully with ConnectionPool!")
+            
         except Exception as e:
-            print(f"⚠️ Postgres Connection failed ({e}). Falling back to MemorySaver.")
-            checkpointer = MemorySaver()
+            # Fallback en ouvrant le context manager si connection_string est utilisé directement
+            try:
+                cm = PostgresSaver.from_conn_string(db_uri)
+                checkpointer = cm.__enter__()
+                checkpointer.setup()
+                print("✅ PostgresSaver initialized via ContextManager!")
+            except Exception as e2:
+                print(f"⚠️ Postgres Connection failed ({e2}). Falling back to MemorySaver.")
+                checkpointer = MemorySaver()
     else:
         print("💾 Using MemorySaver for checkpointer persistence.")
         checkpointer = MemorySaver()

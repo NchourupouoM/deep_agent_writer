@@ -29,10 +29,10 @@ class SkillsManager:
     Scans, parses, indexes, and dynamically loads skill files for LLM Agents.
     """
 
-    def __init__(self, skills_dir: str = "skills"):
+    def __init__(self, skills_dir: str = "skills", verbose: bool = False):
         self.skills_dir = skills_dir
         self.skills_registry: Dict[str, Skill] = {}
-        self.load_all_skills()
+        self.load_all_skills(verbose=verbose)
 
     def _parse_skill_file(self, filepath: str) -> Optional[Skill]:
         """Extracts YAML frontmatter and Markdown body from a SKILL.md file."""
@@ -66,7 +66,7 @@ class SkillsManager:
             print(f"❌ Error parsing skill file {filepath}: {e}")
             return None
 
-    def load_all_skills(self):
+    def load_all_skills(self, verbose: bool = False):
         """Scans skills/ directory and registers all valid .md skill files."""
         self.skills_registry.clear()
         if not os.path.exists(self.skills_dir):
@@ -80,8 +80,8 @@ class SkillsManager:
                     skill = self._parse_skill_file(full_path)
                     if skill:
                         self.skills_registry[skill.metadata.name] = skill
-
-        print(f"✅ Loaded {len(self.skills_registry)} Skills adhering to AgentSkills.io standard.")
+        if verbose:
+            print(f"✅ Loaded {len(self.skills_registry)} Skills adhering to AgentSkills.io standard.")
 
     def get_skills_index_for_prompt(self) -> str:
         """
