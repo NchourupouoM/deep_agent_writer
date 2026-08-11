@@ -4,6 +4,8 @@ from typing import Dict, Any, Literal
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
+from psycopg_pool import ConnectionPool
+from psycopg.rows import dict_row
 
 # Imports officiels langgraph-checkpoint-postgres
 try:
@@ -15,7 +17,7 @@ except ImportError:
 from src.config import LLMFactory
 from src.skills_manager import SkillsManager
 from src.state import DeepAgentState
-from src.agents import researcher_node, writer_node, excalidraw_node
+from src.agents import excalidraw_merger_node, researcher_node, writer_node, excalidraw_node
 from src.prompts import (
     SKILL_ROUTER_SYSTEM_PROMPT,
     SUPERVISOR_ROUTER_PROMPT
@@ -61,41 +63,37 @@ def skill_router_node(state: DeepAgentState) -> Dict[str, Any]:
 # ==========================================
 # 2. SUPERVISOR NODE
 # ==========================================
+# (Dans src/graph.py)
 def supervisor_node(state: DeepAgentState) -> Dict[str, Any]:
     topic = state["topic"]
-    research_status = state.get("research_notes_path")
-    draft_status = state.get("draft_path")
-    diagrams_status = state.get("diagrams_path")
+    research_path = state.get("research_notes_path") or "workspace/research_notes.md"
+    draft_path = state.get("draft_path") or "workspace/draft.md"
+    diagrams_path = state.get("diagrams_path") or "workspace/diagrams_spec.md"
+    final_path = state.get("final_article_path") or "workspace/final_article.md"
     feedback = state.get("revision_feedback")
 
-    print(f"\n👑 [Supervisor Agent] Evaluating state...")
+    print(f"\n👑 [Supervisor Agent] Evaluating workspace artifacts...")
+
     if feedback:
-        print(f"   ⚠️ Human Revision Feedback received: '{feedback}'")
-        # Reset draft status to force writer or researcher re-execution
-        return {
-            "draft_path": None,
-            "revision_feedback": None,
-            "next_node": "writer"
-        }
+        print(f"   ⚠️ Revision Feedback received: '{feedback}'")
+        if os.path.exists(final_path): os.remove(final_path)
+        if os.path.exists(draft_path): os.remove(draft_path)
+        return {"draft_path": None, "final_article_path": None, "revision_feedback": None, "next_node": "writer"}
 
-    sys_prompt = SUPERVISOR_ROUTER_PROMPT.format(
-        topic=topic,
-        research_notes_status=research_status,
-        draft_status=draft_status,
-        diagrams_status=diagrams_status
-    )
+    # Routage Déterministe
+    if not os.path.exists(research_path):
+        next_node = "researcher"
+    elif not os.path.exists(draft_path):
+        next_node = "writer"
+    elif not os.path.exists(diagrams_path):
+        next_node = "excalidraw"
+    elif not os.path.exists(final_path):
+        next_node = "excalidraw_merger"
+    else:
+        next_node = "human_review"
 
-    llm = LLMFactory.get_model(provider=os.getenv("PROVIDER"), temperature=0.0)
-    response = llm.invoke([SystemMessage(content=sys_prompt), HumanMessage(content="Route next step.")])
-
-    try:
-        clean_content = response.content.replace("```json", "").replace("```", "").strip()
-        decision = json.loads(clean_content)
-        next_node = decision.get("next_node", "human_review")
-        print(f"   👉 Routing Decision -> '{next_node}'")
-        return {"next_node": next_node}
-    except Exception:
-        return {"next_node": "human_review"}
+    print(f"   👉 Supervisor Routing Decision -> '{next_node}'")
+    return {"next_node": next_node}
 
 
 # ==========================================
@@ -117,20 +115,16 @@ def route_next_step(state: DeepAgentState) -> Literal["researcher", "writer", "e
 # 4. COMPILER WITH POSTGRES CHECKPOINTER
 # ==========================================
 def create_deep_agent_graph(use_postgres: bool = True):
-    """
-    Builds the StateGraph and attaches PostgresSaver checkpointer correctly.
-    """
     builder = StateGraph(DeepAgentState)
 
-    # Nodes
     builder.add_node("skill_router", skill_router_node)
     builder.add_node("supervisor", supervisor_node)
     builder.add_node("researcher", researcher_node)
     builder.add_node("writer", writer_node)
     builder.add_node("excalidraw", excalidraw_node)
+    builder.add_node("excalidraw_merger", excalidraw_merger_node)
     builder.add_node("human_review", human_review_node)
 
-    # Edges
     builder.add_edge(START, "skill_router")
     builder.add_edge("skill_router", "supervisor")
 
@@ -141,6 +135,7 @@ def create_deep_agent_graph(use_postgres: bool = True):
             "researcher": "researcher",
             "writer": "writer",
             "excalidraw": "excalidraw",
+            "excalidraw_merger": "excalidraw_merger",
             "human_review": "human_review"
         }
     )
@@ -148,50 +143,20 @@ def create_deep_agent_graph(use_postgres: bool = True):
     builder.add_edge("researcher", "supervisor")
     builder.add_edge("writer", "supervisor")
     builder.add_edge("excalidraw", "supervisor")
+    builder.add_edge("excalidraw_merger", "supervisor")
     builder.add_edge("human_review", END)
 
-    # Setup Checkpointer (PostgresSaver avec ConnectionPool ou Fallback MemorySaver)
-    db_uri = os.getenv("DATABASE_URL")
+    # Checkpointer configuration ...
+    db_uri = os.getenv("POSTGRES_DB_URI")
     checkpointer = None
-
     if use_postgres and POSTGRES_AVAILABLE and db_uri:
         try:
-            print(f"💾 Initializing PostgresSaver with DB: {db_uri.split('@')[-1]}")
-            from psycopg_pool import ConnectionPool
-            from psycopg.rows import dict_row
-
-            # Création du Pool de connexion officiel recommandé par LangGraph
-            connection_kwargs = {
-                "autocommit": True,
-                "prepare_threshold": 0,
-                "row_factory": dict_row
-            }
-            pool = ConnectionPool(
-                conninfo=db_uri,
-                max_size=20,
-                kwargs=connection_kwargs
-            )
-            
+            pool = ConnectionPool(conninfo=db_uri, max_size=20, kwargs={"autocommit": True, "row_factory": dict_row})
             checkpointer = PostgresSaver(pool)
-            checkpointer.setup() # Crée automatiquement les tables dans Postgres si elles n'existent pas !
-            print("✅ PostgresSaver initialized successfully with ConnectionPool!")
-            
-        except Exception as e:
-            # Fallback en ouvrant le context manager si connection_string est utilisé directement
-            try:
-                cm = PostgresSaver.from_conn_string(db_uri)
-                checkpointer = cm.__enter__()
-                checkpointer.setup()
-                print("✅ PostgresSaver initialized via ContextManager!")
-            except Exception as e2:
-                print(f"⚠️ Postgres Connection failed ({e2}). Falling back to MemorySaver.")
-                checkpointer = MemorySaver()
+            checkpointer.setup()
+        except Exception:
+            checkpointer = MemorySaver()
     else:
-        print("💾 Using MemorySaver for checkpointer persistence.")
         checkpointer = MemorySaver()
 
-    # Compile with HITL Interrupt before entering human_review
-    return builder.compile(
-        checkpointer=checkpointer,
-        interrupt_before=["human_review"]
-    )
+    return builder.compile(checkpointer=checkpointer, interrupt_before=["human_review"])

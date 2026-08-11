@@ -3,13 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DeepAgent Medium Writer — Dashboard</title>
-    <!-- Tailwind CSS -->
+    <title>DeepAgent Medium Writer — Production Dashboard</title>
+    
+    <!-- 1. Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
+    
+    <!-- 2. Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Marked.js for Markdown Rendering -->
+    
+    <!-- 3. Marked.js (Markdown Parser) -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- 4. React & ReactDOM (Requis pour la bibliothèque officielle Excalidraw) -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+
+    <!-- 5. CDN Officiel Excalidraw Bundle -->
+    <script src="https://unpkg.com/@excalidraw/excalidraw/dist/excalidraw.production.min.js" crossorigin></script>
+
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -23,8 +34,9 @@
         }
     </script>
     <style>
-        .prose pre { background-color: #1e293b; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; }
-        .prose code { color: #38bdf8; }
+        .prose pre { background-color: #0f172a; padding: 1.25rem; border-radius: 0.75rem; overflow-x: auto; border: 1px solid #1e293b; }
+        .prose code { color: #38bdf8; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+        .excalidraw-svg-container svg { width: 100%; height: auto; max-width: 800px; margin: 1.5rem auto; border-radius: 0.75rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col">
@@ -38,13 +50,13 @@
                 </div>
                 <div>
                     <h1 class="font-bold text-lg leading-none text-white">DeepAgent Medium Writer</h1>
-                    <span class="text-xs text-slate-400">LangChain Deep Agent • LangGraph • AgentSkills.io</span>
+                    <span class="text-xs text-slate-400">LangChain Deep Agent • LangGraph • AgentSkills.io • Excalidraw Official</span>
                 </div>
             </div>
             <div class="flex items-center gap-4">
                 <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                     <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    LangSmith Tracing Active
+                    LangSmith Active
                 </span>
                 <button type="button" onclick="openNewArticleModal()" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-lg shadow-blue-500/20">
                     <i data-lucide="plus-circle" class="w-4 h-4"></i> New Article
@@ -62,7 +74,9 @@
                 <h2 class="font-semibold text-slate-200 text-sm flex items-center gap-2">
                     <i data-lucide="layers" class="w-4 h-4 text-blue-400"></i> Generation Sessions
                 </h2>
-                <button type="button" onclick="fetchSessions()" class="text-slate-400 hover:text-white text-xs"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i></button>
+                <button type="button" onclick="fetchSessions()" class="text-slate-400 hover:text-white text-xs flex items-center gap-1">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+                </button>
             </div>
             <div id="sessions-list" class="space-y-3">
                 <div class="p-4 bg-slate-900 border border-slate-800 rounded-xl text-center text-slate-500 text-sm">
@@ -74,36 +88,40 @@
         <!-- MAIN DASHBOARD CONTENT -->
         <main class="col-span-12 lg:col-span-8 space-y-6">
             
-            <!-- STEPPER TRACKER -->
+            <!-- STEPPER TRACKER (6 STEPS) -->
             <div id="stepper-card" class="bg-slate-900 border border-slate-800 rounded-xl p-6 hidden">
                 <div class="flex items-center justify-between mb-6">
                     <h3 class="text-sm font-semibold text-slate-300 flex items-center gap-2">
-                        <i data-lucide="activity" class="w-4 h-4 text-blue-400"></i> Real-Time Agent Execution Pipeline
+                        <i data-lucide="activity" class="w-4 h-4 text-blue-400"></i> Agent Execution Pipeline
                     </h3>
                     <span id="active-thread-id" class="text-xs font-mono text-slate-500">ID: -</span>
                 </div>
                 
                 <!-- STEPPER NODES -->
-                <div class="grid grid-cols-5 gap-2 text-center text-xs">
-                    <div id="step-skill_router" class="p-3 bg-slate-800/50 border border-slate-700/50 rounded-lg space-y-1">
+                <div class="grid grid-cols-6 gap-2 text-center text-[11px]">
+                    <div id="step-skill_router" class="p-2.5 bg-slate-800/50 border border-slate-700/50 rounded-lg space-y-1">
                         <i data-lucide="brain" class="w-4 h-4 mx-auto text-slate-400"></i>
-                        <div class="font-medium">Skill Router</div>
+                        <div class="font-medium truncate">Skill Router</div>
                     </div>
-                    <div id="step-researcher" class="p-3 bg-slate-800/50 border border-slate-700/50 rounded-lg space-y-1">
+                    <div id="step-researcher" class="p-2.5 bg-slate-800/50 border border-slate-700/50 rounded-lg space-y-1">
                         <i data-lucide="search" class="w-4 h-4 mx-auto text-slate-400"></i>
-                        <div class="font-medium">Researcher</div>
+                        <div class="font-medium truncate">Researcher</div>
                     </div>
-                    <div id="step-writer" class="p-3 bg-slate-800/50 border border-slate-700/50 rounded-lg space-y-1">
+                    <div id="step-writer" class="p-2.5 bg-slate-800/50 border border-slate-700/50 rounded-lg space-y-1">
                         <i data-lucide="file-text" class="w-4 h-4 mx-auto text-slate-400"></i>
-                        <div class="font-medium">Writer</div>
+                        <div class="font-medium truncate">Writer</div>
                     </div>
-                    <div id="step-excalidraw" class="p-3 bg-slate-800/50 border border-slate-700/50 rounded-lg space-y-1">
+                    <div id="step-excalidraw" class="p-2.5 bg-slate-800/50 border border-slate-700/50 rounded-lg space-y-1">
                         <i data-lucide="palette" class="w-4 h-4 mx-auto text-slate-400"></i>
-                        <div class="font-medium">Excalidraw</div>
+                        <div class="font-medium truncate">Excalidraw</div>
                     </div>
-                    <div id="step-human_review" class="p-3 bg-slate-800/50 border border-slate-700/50 rounded-lg space-y-1">
+                    <div id="step-excalidraw_merger" class="p-2.5 bg-slate-800/50 border border-slate-700/50 rounded-lg space-y-1">
+                        <i data-lucide="layers" class="w-4 h-4 mx-auto text-slate-400"></i>
+                        <div class="font-medium truncate">Merger</div>
+                    </div>
+                    <div id="step-human_review" class="p-2.5 bg-slate-800/50 border border-slate-700/50 rounded-lg space-y-1">
                         <i data-lucide="user-check" class="w-4 h-4 mx-auto text-slate-400"></i>
-                        <div class="font-medium">HITL Review</div>
+                        <div class="font-medium truncate">HITL Review</div>
                     </div>
                 </div>
             </div>
@@ -116,7 +134,7 @@
                     </div>
                     <div class="flex-1 space-y-3">
                         <h3 class="font-semibold text-amber-300">Human-in-the-Loop Review Required</h3>
-                        <p class="text-xs text-amber-200/80">The Deep Agent team has finished the initial draft and diagram specifications. Review the artifacts below and either approve or request revisions.</p>
+                        <p class="text-xs text-amber-200/80">The Deep Agent pipeline has completed drafting and embedding Excalidraw diagrams. Review the final article below and approve or submit revision instructions.</p>
                         <div class="flex items-center gap-3 pt-2">
                             <button type="button" onclick="approveArticle()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
                                 <i data-lucide="check" class="w-4 h-4"></i> Approve Article
@@ -126,7 +144,7 @@
                             </button>
                         </div>
                         <div id="revision-form" class="hidden pt-3 space-y-2">
-                            <textarea id="feedback-input" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-200 focus:outline-none focus:border-blue-500" placeholder="Specify instructions for revision..."></textarea>
+                            <textarea id="feedback-input" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-200 focus:outline-none focus:border-blue-500" placeholder="Specify feedback instructions for revision..."></textarea>
                             <button type="button" onclick="submitRevision()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-medium">Submit Revision Feedback</button>
                         </div>
                     </div>
@@ -137,13 +155,17 @@
             <div id="artifact-viewer" class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden hidden">
                 <div class="border-b border-slate-800 px-6 py-3 flex items-center justify-between bg-slate-900/50">
                     <div class="flex gap-2">
-                        <button type="button" onclick="switchTab('draft')" id="tab-draft" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white">Article Draft</button>
+                        <button type="button" onclick="switchTab('final')" id="tab-final" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white">Final Article (With Excalidraw)</button>
                         <button type="button" onclick="switchTab('diagrams')" id="tab-diagrams" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-400 hover:text-white">Excalidraw Specs</button>
+                        <button type="button" onclick="switchTab('draft')" id="tab-draft" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-400 hover:text-white">Raw Draft</button>
                         <button type="button" onclick="switchTab('research')" id="tab-research" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-400 hover:text-white">Research Notes</button>
                     </div>
+                    <button type="button" onclick="copyCurrentContent()" class="text-xs text-slate-400 hover:text-white flex items-center gap-1">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy Markdown
+                    </button>
                 </div>
-                <div class="p-6 max-h-[600px] overflow-y-auto">
-                    <div id="markdown-content" class="prose prose-invert prose-sm max-w-none">Select a session to view content.</div>
+                <div class="p-6 max-h-[700px] overflow-y-auto">
+                    <div id="markdown-content" class="prose prose-invert prose-slate max-w-none">Select a session to view content.</div>
                 </div>
             </div>
 
@@ -154,7 +176,9 @@
     <div id="new-article-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center hidden">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6 space-y-4">
             <div class="flex items-center justify-between">
-                <h3 class="font-bold text-lg text-white flex items-center gap-2"><i data-lucide="sparkles" class="w-5 h-5 text-blue-400"></i> New Article Generation</h3>
+                <h3 class="font-bold text-lg text-white flex items-center gap-2">
+                    <i data-lucide="sparkles" class="w-5 h-5 text-blue-400"></i> New Article Generation
+                </h3>
                 <button type="button" onclick="closeNewArticleModal()" class="text-slate-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
             <div class="space-y-3">
@@ -168,39 +192,28 @@
         </div>
     </div>
 
-    <!-- SCRIPT WITH ERROR-HANDLING & BASE URL DETECTION -->
+    <!-- MAIN JAVASCRIPT LOGIC -->
     <script>
-        // Detection automatique du serveur API
+        // Détection automatique de l'URL API Base
         const API_BASE = (window.location.protocol === 'file:' || window.location.port === '5500') 
             ? 'http://127.0.0.1:8000' 
             : '';
 
-        console.log("📌 Connected to API Base URL:", API_BASE || "Same Origin");
-
         if (window.lucide) lucide.createIcons();
         let currentThreadId = null;
-        let activeTab = 'draft';
+        let activeTab = 'final';
         let currentFilesData = {};
         let currentEventSource = null;
 
-        function openNewArticleModal() { 
-            document.getElementById('new-article-modal').classList.remove('hidden'); 
-        }
-        function closeNewArticleModal() { 
-            document.getElementById('new-article-modal').classList.add('hidden'); 
-        }
+        function openNewArticleModal() { document.getElementById('new-article-modal').classList.remove('hidden'); }
+        function closeNewArticleModal() { document.getElementById('new-article-modal').classList.add('hidden'); }
 
         async function submitNewArticle() {
             try {
                 const topicInput = document.getElementById('modal-topic-input');
                 const topic = topicInput ? topicInput.value.trim() : '';
 
-                if (!topic) {
-                    alert('Please enter an article topic.');
-                    return;
-                }
-
-                console.log("🚀 Submitting new article topic:", topic);
+                if (!topic) return alert('Please enter an article topic.');
                 closeNewArticleModal();
 
                 const res = await fetch(`${API_BASE}/api/articles`, {
@@ -209,19 +222,13 @@
                     body: JSON.stringify({topic: topic})
                 });
 
-                if (!res.ok) {
-                    const err = await res.text();
-                    throw new Error(`Server returned ${res.status}: ${err}`);
-                }
-
+                if (!res.ok) throw new Error(`Server returned ${res.status}`);
                 const data = await res.json();
-                console.log("✅ Article job created:", data);
 
                 await fetchSessions();
                 selectSession(data.thread_id);
-
             } catch (error) {
-                console.error("❌ Error in submitNewArticle:", error);
+                console.error("Error starting generation:", error);
                 alert("Error starting generation: " + error.message);
             }
         }
@@ -234,10 +241,7 @@
                 const container = document.getElementById('sessions-list');
                 
                 if (!sessions || sessions.length === 0) {
-                    container.innerHTML = `
-                        <div class="p-4 bg-slate-900 border border-slate-800 rounded-xl text-center text-slate-500 text-sm">
-                            No active generation sessions. Click 'New Article' to start.
-                        </div>`;
+                    container.innerHTML = `<div class="p-4 bg-slate-900 border border-slate-800 rounded-xl text-center text-slate-500 text-sm">No active generation sessions. Click 'New Article' to start.</div>`;
                     return;
                 }
 
@@ -262,22 +266,13 @@
             document.getElementById('active-thread-id').innerText = `ID: ${threadId}`;
             fetchSessions();
 
-            // Connect to Real-time Stream
             if (currentEventSource) currentEventSource.close();
 
             const sseUrl = `${API_BASE}/api/articles/${threadId}/stream`;
-            console.log("📡 Connecting SSE Stream to:", sseUrl);
-
             currentEventSource = new EventSource(sseUrl);
 
-            currentEventSource.onopen = () => {
-                console.log("✅ SSE Connection established!");
-            };
-
             currentEventSource.onmessage = (event) => {
-                console.log("📩 SSE Event Received:", event.data);
                 const data = JSON.parse(event.data);
-                
                 if (data.node) highlightStep(data.node);
                 
                 if (data.event === 'HITL_INTERRUPT') {
@@ -292,34 +287,35 @@
                 }
             };
 
-            currentEventSource.onerror = (err) => {
-                console.error("⚠️ SSE Connection Error:", err);
+            currentEventSource.onerror = () => {
                 currentEventSource.close();
             };
         }
 
         function highlightStep(nodeName) {
-            ['skill_router', 'researcher', 'writer', 'excalidraw', 'human_review'].forEach(step => {
+            ['skill_router', 'researcher', 'writer', 'excalidraw', 'excalidraw_merger', 'human_review'].forEach(step => {
                 const el = document.getElementById(`step-${step}`);
                 if (!el) return;
                 if (step === nodeName) {
-                    el.className = 'p-3 bg-blue-600/20 border border-blue-500 rounded-lg space-y-1 text-blue-400';
+                    el.className = 'p-2.5 bg-blue-600/20 border border-blue-500 rounded-lg space-y-1 text-blue-400';
                 } else {
-                    el.className = 'p-3 bg-slate-800/50 border border-slate-700/50 rounded-lg space-y-1 text-slate-400';
+                    el.className = 'p-2.5 bg-slate-800/50 border border-slate-700/50 rounded-lg space-y-1 text-slate-400';
                 }
             });
         }
 
         async function loadArtifacts(threadId) {
             try {
-                const [draftRes, diagRes, resRes] = await Promise.all([
+                const [finalRes, draftRes, diagRes, resRes] = await Promise.all([
+                    fetch(`${API_BASE}/api/articles/${threadId}/files/final_article.md`).then(r => r.json()).catch(() => ({content: ''})),
                     fetch(`${API_BASE}/api/articles/${threadId}/files/draft.md`).then(r => r.json()).catch(() => ({content: ''})),
                     fetch(`${API_BASE}/api/articles/${threadId}/files/diagrams_spec.md`).then(r => r.json()).catch(() => ({content: ''})),
                     fetch(`${API_BASE}/api/articles/${threadId}/files/research_notes.md`).then(r => r.json()).catch(() => ({content: ''}))
                 ]);
 
                 currentFilesData = {
-                    draft: draftRes.content || 'Draft not ready.',
+                    final: finalRes.content || 'Final article with Excalidraw not ready.',
+                    draft: draftRes.content || 'Raw draft not ready.',
                     diagrams: diagRes.content || 'Diagrams spec not ready.',
                     research: resRes.content || 'Research notes not ready.'
                 };
@@ -330,9 +326,31 @@
             }
         }
 
-        function switchTab(tab) {
+        // UTILISATION DU MOTEUR OFFICIEL EXCALIDRAW (exportToSvg)
+        async function renderExcalidrawToSvg(elements) {
+            if (window.ExcalidrawLib && window.ExcalidrawLib.exportToSvg) {
+                try {
+                    const svg = await window.ExcalidrawLib.exportToSvg({
+                        elements: elements,
+                        appState: {
+                            exportWithDarkMode: true,
+                            exportBackground: true,
+                            viewBackgroundColor: "#0f172a"
+                        },
+                        files: null
+                    });
+                    svg.classList.add('w-full', 'max-w-3xl', 'mx-auto', 'my-6', 'rounded-xl', 'border', 'border-slate-800', 'shadow-2xl');
+                    return svg.outerHTML;
+                } catch (err) {
+                    console.error("Official Excalidraw exportToSvg error:", err);
+                }
+            }
+            return null;
+        }
+
+        async function switchTab(tab) {
             activeTab = tab;
-            ['draft', 'diagrams', 'research'].forEach(t => {
+            ['final', 'diagrams', 'draft', 'research'].forEach(t => {
                 const btn = document.getElementById(`tab-${t}`);
                 if (btn) {
                     btn.className = t === tab 
@@ -340,10 +358,40 @@
                         : 'px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-400 hover:text-white';
                 }
             });
-            
+
             const markdownEl = document.getElementById('markdown-content');
-            if (markdownEl && window.marked) {
-                markdownEl.innerHTML = marked.parse(currentFilesData[tab] || '');
+            if (!markdownEl || !window.marked) return;
+
+            // Rendu Markdown initial
+            markdownEl.innerHTML = marked.parse(currentFilesData[tab] || 'No content.');
+
+            // Traitement des blocs de code ```excalidraw
+            const codeBlocks = markdownEl.querySelectorAll('pre code');
+            for (let block of codeBlocks) {
+                if (block.textContent.includes('"type": "excalidraw"') || block.classList.contains('language-excalidraw')) {
+                    try {
+                        const jsonText = block.textContent.trim();
+                        const data = JSON.parse(jsonText);
+                        if (data.elements && Array.isArray(data.elements)) {
+                            // Appel du moteur officiel Excalidraw
+                            const svgString = await renderExcalidrawToSvg(data.elements);
+                            if (svgString) {
+                                const container = document.createElement('div');
+                                container.className = 'my-8 text-center excalidraw-svg-container';
+                                container.innerHTML = `
+                                    <div class="text-xs font-semibold text-blue-400 mb-2 flex items-center justify-center gap-1">
+                                        <i data-lucide="palette" class="w-4 h-4"></i> Official Excalidraw Diagram
+                                    </div>
+                                    ${svgString}
+                                `;
+                                block.parentElement.replaceWith(container);
+                                if (window.lucide) lucide.createIcons();
+                            }
+                        }
+                    } catch (e) {
+                        console.warn("Could not parse Excalidraw block:", e);
+                    }
+                }
             }
         }
 
@@ -385,7 +433,13 @@
             }
         }
 
-        // Chargement initial
+        function copyCurrentContent() {
+            const content = currentFilesData[activeTab] || '';
+            navigator.clipboard.writeText(content).then(() => {
+                alert('Copied to clipboard!');
+            });
+        }
+
         fetchSessions();
     </script>
 </body>
