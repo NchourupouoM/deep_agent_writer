@@ -20,7 +20,6 @@ class LLMFactory:
     @staticmethod
     def get_model(
         provider: ProviderType = "openrouter",
-        model_name: str = "anthropic/claude-3.5-sonnet",
         temperature: float = 0.2,
         max_tokens: Optional[int] = 4096,
     ) -> BaseChatModel:
@@ -36,7 +35,7 @@ class LLMFactory:
                 raise ValueError("OPENROUTER_API_KEY manquante dans le fichier .env")
             
             return ChatOpenAI(
-                model=model_name,
+                model=os.getenv("MODEL", "anthropic/claude-3.5-sonnet"),  # Modèle par défaut
                 openai_api_key=api_key,
                 openai_api_base="https://openrouter.ai/api/v1",
                 temperature=temperature,
@@ -50,7 +49,7 @@ class LLMFactory:
         # 2. OPTION OPENAI DIRECT
         elif provider == "openai":
             return ChatOpenAI(
-                model=model_name,
+                model=os.getenv("MODEL", "gpt-4o"),  # Modèle par défaut
                 temperature=temperature,
                 max_tokens=max_tokens
             )
@@ -58,7 +57,7 @@ class LLMFactory:
         # # 3. OPTION ANTHROPIC DIRECT
         # elif provider == "anthropic":
         #     return ChatAnthropic(
-        #         model=model_name,
+        #         model=os.getenv("MODEL", "anthropic/claude-3.5-sonnet"),
         #         temperature=temperature,
         #         max_tokens=max_tokens
         #     )
@@ -66,7 +65,7 @@ class LLMFactory:
         # 4. OPTION GOOGLE GEMINI DIRECT
         elif provider == "google":
             return ChatGoogleGenerativeAI(
-                model=model_name,
+                model=os.getenv("MODEL", "google/gemini-3.5-flash-lite"),
                 temperature=temperature,
                 max_output_tokens=max_tokens
             )
@@ -78,7 +77,7 @@ class LLMFactory:
                 raise ValueError("DEEPSEEK_API_KEY manquante dans le fichier .env")
                 
             return ChatOpenAI(
-                model=model_name, # ex: "deepseek-chat" ou "deepseek-coder"
+                model=os.getenv("MODEL"), # ex: "deepseek-chat" ou "deepseek-coder"
                 openai_api_key=api_key,
                 openai_api_base="https://api.deepseek.com/v1",
                 temperature=temperature,
