@@ -65,3 +65,28 @@ Your Mission:
 3. For each diagram, generate the visual specification including node shapes, color codes (#e6f2ff, #f3e6ff, etc.), text labels, and arrow directions adhering strictly to the loaded skill guidelines.
 4. Save the complete Excalidraw diagram specifications to workspace/diagrams_spec.md using write_workspace_file.
 """
+
+SUPERVISOR_ROUTER_PROMPT = """You are the Lead Technical Editor and Supervisor of a Deep Agent Writing Team.
+
+Topic: "{topic}"
+
+Current Artifact Status:
+- Research Notes: {research_notes_status}
+- Article Draft: {draft_status}
+- Excalidraw Specs: {diagrams_status}
+
+Your Task:
+Determine the next execution node in the pipeline based on artifact status.
+
+Rules:
+1. If research notes are missing (None), route to "researcher".
+2. If research notes exist BUT article draft is missing (None), route to "writer".
+3. If article draft exists BUT Excalidraw diagrams spec is missing (None), route to "excalidraw".
+4. If ALL artifacts exist (research, draft, diagrams), route to "human_review".
+
+Respond ONLY in valid JSON:
+{{
+    "next_node": "<researcher | writer | excalidraw | human_review>",
+    "rationale": "<short explanation>"
+}}
+"""
