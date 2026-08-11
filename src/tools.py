@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional, List
 from langchain_core.tools import tool
 from tavily import TavilyClient
-from skills_manager import SkillsManager
+from src.skills_manager import SkillsManager
 
 # Global Workspace Directory
 WORKSPACE_DIR = Path("workspace").resolve()

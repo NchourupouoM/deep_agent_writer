@@ -12,11 +12,11 @@ try:
 except ImportError:
     POSTGRES_AVAILABLE = False
 
-from config import LLMFactory
-from skills_manager import SkillsManager
-from state import DeepAgentState
-from agents import researcher_node, writer_node, excalidraw_node
-from prompts import (
+from src.config import LLMFactory
+from src.skills_manager import SkillsManager
+from src.state import DeepAgentState
+from src.agents import researcher_node, writer_node, excalidraw_node
+from src.prompts import (
     SKILL_ROUTER_SYSTEM_PROMPT,
     SUPERVISOR_ROUTER_PROMPT
 )

@@ -2,10 +2,10 @@ from typing import Dict, Any
 from langchain_core.messages import HumanMessage, SystemMessage
 import os
 
-from config import LLMFactory
-from skills_manager import SkillsManager
-from state import DeepAgentState
-from tools import (
+from src.config import LLMFactory
+from src.skills_manager import SkillsManager
+from src.state import DeepAgentState
+from src.tools import (
     ALL_TOOLS,
     web_search_tavily,
     execute_python_sandbox,
@@ -13,7 +13,7 @@ from tools import (
     read_workspace_file,
     load_skill_instruction
 )
-from prompts import (
+from src.prompts import (
     RESEARCHER_SYSTEM_PROMPT,
     WRITER_SYSTEM_PROMPT,
     EXCALIDRAW_SYSTEM_PROMPT

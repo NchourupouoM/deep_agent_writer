@@ -4,7 +4,7 @@ import yaml
 from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 
-from prompts import SKILL_INDEX_HEADER
+from src.prompts import SKILL_INDEX_HEADER
 
 
 class SkillMetadata(BaseModel):
