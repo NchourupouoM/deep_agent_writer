@@ -1,14 +1,6 @@
 # DeepAgent Medium Writer
 
-> **An Autonomous, Production-Grade Multi-Agent AI System built with LangChain, LangGraph, AgentSkills.io, Celery, Redis, and PostgreSQL.**
-
-![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![LangChain](https://img.shields.io/badge/LangChain-v0.3-1C3C3C?style=for-the-badge)
-![LangGraph](https://img.shields.io/badge/LangGraph-v0.2-FF4F00?style=for-the-badge)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?style=for-the-badge&logo=fastapi&logoColor=white)
-![Celery](https://img.shields.io/badge/Celery-5.3+-37814A?style=for-the-badge&logo=celery&logoColor=white)
-![Redis](https://img.shields.io/badge/Redis-5.0+-DC382D?style=for-the-badge&logo=redis&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
+**An Autonomous, Production-Grade Multi-Agent AI System built with LangChain, LangGraph, AgentSkills.io, Celery, Redis, and PostgreSQL.**
 
 ---
 
@@ -240,15 +232,6 @@ Access the Web Dashboard at **`http://127.0.0.1:8000`** in your browser!
 | `POST` | `/api/articles/{thread_id}/hitl` | Submits Human-in-the-Loop decision (`approve` or `revise`). |
 | `GET` | `/api/articles/{thread_id}/files/{filename}` | Fetches workspace files (`final_article.md`, `draft.md`, etc.). |
 | `DELETE` | `/api/articles/{thread_id}` | Deletes session thread state from memory. |
-
----
-
-## 👤 Author & Credits
-
-* **Nchourupouo Mohamed** — *AI Engineer*
-  * **LinkedIn**: [linkedin.com/in/mohamed-nchourupouo](https://linkedin.com/in/mohamed-nchourupouo)
-  * **GitHub**: [github.com/NchourupouoM](https://github.com/NchourupouoM)
-  * **Portfolio**: [nchourupouom.github.io](https://nchourupouom.github.io)
 
 ---
 
